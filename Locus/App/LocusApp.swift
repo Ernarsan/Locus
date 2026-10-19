@@ -4,6 +4,7 @@ import SwiftUI
 struct LocusApp: App {
     @StateObject private var session = SpoofSession()
     @StateObject private var pairing = PairingStore()
+    @StateObject private var timerController = SpoofTimerController()
     @AppStorage(SetupGate.defaultsKey) private var setupComplete = false
 
     /// Map when setup finished, or when already paired outside this walkthrough.
@@ -25,6 +26,7 @@ struct LocusApp: App {
             }
             .environmentObject(session)
             .environmentObject(pairing)
+            .environmentObject(timerController)
             .preferredColorScheme(.dark)
             .onOpenURL { url in
                 handleIncoming(url)
@@ -33,6 +35,9 @@ struct LocusApp: App {
                 if !setupComplete, pairing.hasPairingFile, !SetupGate.isInProgress {
                     SetupGate.markComplete()
                     setupComplete = true
+                }
+                Task {
+                    await timerController.checkPersistedStateOnLaunch()
                 }
             }
         }

@@ -22,6 +22,7 @@ struct MapHomeView: View {
     @State private var suppressNextMapTap = false
     /// Set when the pin comes from search / a named place so starring keeps the title.
     @State private var pinPlaceName: String?
+    @State private var showCoordinateSheet = false
 
     private var mapStyle: MapStyle {
         switch session.mapStyleIndex {
@@ -148,6 +149,12 @@ struct MapHomeView: View {
             )
             .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showCoordinateSheet) {
+            ManualCoordinateSheet(initialCoordinate: session.pin) { newCoord in
+                session.pin = newCoord
+                position = .region(MKCoordinateRegion(center: newCoord, latitudinalMeters: 1200, longitudinalMeters: 1200))
+            }
+        }
     }
 
     private func placePin(at point: CGPoint, proxy: MapProxy) {
@@ -254,6 +261,9 @@ struct MapHomeView: View {
             }
             chromeIconButton("point.topleft.down.to.point.bottomright.curvepath") {
                 showRouteSheet = true
+            }
+            chromeIconButton("mappin.and.ellipse") {
+                showCoordinateSheet = true
             }
             chromeIconButton(drawMode ? "pencil.tip.crop.circle.badge.minus" : "pencil.tip.crop.circle") {
                 drawMode.toggle()

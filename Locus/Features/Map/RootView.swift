@@ -4,8 +4,11 @@ import NetworkExtension
 struct RootView: View {
     @EnvironmentObject private var session: SpoofSession
     @EnvironmentObject private var pairing: PairingStore
+    @EnvironmentObject private var timerController: SpoofTimerController
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
     @State private var showPlaces = false
+    @State private var showTimer = false
 
     var body: some View {
         // Bottom chrome is a sibling overlay aligned to the bottom — no full-screen
@@ -15,7 +18,8 @@ struct RootView: View {
 
             BottomControlsView(
                 showSettings: $showSettings,
-                showPlaces: $showPlaces
+                showPlaces: $showPlaces,
+                showTimer: $showTimer
             )
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
@@ -25,6 +29,35 @@ struct RootView: View {
         }
         .sheet(isPresented: $showPlaces) {
             PlacesView()
+        }
+        .sheet(isPresented: $showTimer) {
+            NavigationStack {
+                ScrollView {
+                    SpoofTimerView()
+                        .padding()
+                }
+                .navigationTitle("Таймер спуфинга")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Закрыть") { showTimer = false }
+                    }
+                }
+            }
+            .presentationDetents([.fraction(0.72), .large])
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                timerController.handleAppForeground()
+            }
+        }
+        .onChange(of: timerController.state) { _, newState in
+            if newState == .finished {
+                if session.isSpoofing {
+                    session.simulated = nil
+                    session.status = .idle
+                }
+            }
         }
         .alert("Locus", isPresented: Binding(
             get: { session.lastError != nil },
@@ -39,6 +72,7 @@ struct RootView: View {
 
 struct StatusBarView: View {
     @EnvironmentObject private var session: SpoofSession
+    @EnvironmentObject private var timerController: SpoofTimerController
     @Environment(\.scenePhase) private var scenePhase
 
     @State private var tunnelConnected = LocalDevVPN.isConnected
@@ -50,6 +84,15 @@ struct StatusBarView: View {
     }
 
     private var display: Display {
+        switch timerController.state {
+        case .running:
+            return .status("Таймер: \(formatTime(timerController.remainingSeconds))")
+        case .paused:
+            return .status("Пауза: \(formatTime(timerController.remainingSeconds))")
+        default:
+            break
+        }
+
         switch session.status {
         case .idle:
             return tunnelConnected ? .notSpoofing : .connectVPN
@@ -65,6 +108,15 @@ struct StatusBarView: View {
     }
 
     private var color: Color {
+        switch timerController.state {
+        case .running:
+            return LocusTheme.statusGood
+        case .paused:
+            return LocusTheme.statusWarn
+        default:
+            break
+        }
+
         switch display {
         case .notSpoofing:
             return Color.primary.opacity(0.55)
@@ -86,6 +138,13 @@ struct StatusBarView: View {
         case .connectVPN: return "Connect LocalDevVPN"
         case .status(let text): return text
         }
+    }
+
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let total = Int(ceil(seconds))
+        let m = total / 60
+        let s = total % 60
+        return String(format: "%02d:%02d", m, s)
     }
 
     var body: some View {
@@ -158,10 +217,19 @@ struct StatusBarView: View {
 struct BottomControlsView: View {
     @EnvironmentObject private var session: SpoofSession
     @EnvironmentObject private var pairing: PairingStore
+    @EnvironmentObject private var timerController: SpoofTimerController
     @Binding var showSettings: Bool
     @Binding var showPlaces: Bool
+    @Binding var showTimer: Bool
 
     private let trayShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+
+    private var isTimerActive: Bool {
+        switch timerController.state {
+        case .running, .paused: return true
+        default: return false
+        }
+    }
 
     var body: some View {
         VStack(spacing: 12) {
@@ -171,6 +239,10 @@ struct BottomControlsView: View {
                 }
                 .frame(width: 148, height: 148)
                 .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+
+            if isTimerActive {
+                compactTimerBanner
             }
 
             HStack(spacing: 8) {
@@ -196,6 +268,7 @@ struct BottomControlsView: View {
             HStack(spacing: 10) {
                 trayIcon("gearshape.fill") { showSettings = true }
                 trayIcon("star.fill") { showPlaces = true }
+                trayIcon("timer") { showTimer = true }
 
                 Button {
                     if session.joystickActive {
@@ -222,6 +295,9 @@ struct BottomControlsView: View {
 
                 if session.isSpoofing {
                     Button {
+                        if isTimerActive {
+                            Task { await timerController.stop() }
+                        }
                         session.stop(pairing: pairing)
                     } label: {
                         Text("Stop")
@@ -260,6 +336,72 @@ struct BottomControlsView: View {
         .locusGlass(.regular, in: trayShape)
         // Whole tray absorbs taps so near-misses don't fall through to the map.
         .contentShape(trayShape)
+    }
+
+    private var compactTimerBanner: some View {
+        Button {
+            showTimer = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "timer")
+                    .foregroundStyle(timerController.state == .running ? LocusTheme.statusGood : LocusTheme.statusWarn)
+
+                Text(formatRemaining(timerController.remainingSeconds))
+                    .font(.subheadline.weight(.bold).monospaced())
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if case .running = timerController.state {
+                    Button {
+                        timerController.pause()
+                    } label: {
+                        Image(systemName: "pause.fill")
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                            .padding(6)
+                            .background(Circle().fill(Color.primary.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                } else if case .paused = timerController.state {
+                    Button {
+                        timerController.resume(
+                            pairingPath: pairing.pairingPath,
+                            deviceIP: TunnelConfig.targetIP
+                        )
+                    } label: {
+                        Image(systemName: "play.fill")
+                            .font(.caption)
+                            .foregroundStyle(.black)
+                            .padding(6)
+                            .background(Circle().fill(LocusTheme.accent))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    Task { await timerController.stop() }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(Circle().fill(LocusTheme.danger))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.primary.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func formatRemaining(_ seconds: TimeInterval) -> String {
+        let total = Int(ceil(seconds))
+        let m = total / 60
+        let s = total % 60
+        return String(format: "%02d:%02d", m, s)
     }
 
     private func trayIcon(_ systemName: String, action: @escaping () -> Void) -> some View {

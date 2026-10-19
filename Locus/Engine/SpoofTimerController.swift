@@ -56,6 +56,16 @@ enum SpoofTimerState: Equatable {
     case finished
     case failed(error: String)
 
+    var isRunning: Bool {
+        if case .running = self { return true }
+        return false
+    }
+
+    var isPaused: Bool {
+        if case .paused = self { return true }
+        return false
+    }
+
     var titleRussian: String {
         switch self {
         case .idle: return "Ожидание"
@@ -83,6 +93,9 @@ enum SpoofTimerState: Equatable {
 final class SpoofTimerController: ObservableObject {
     @Published private(set) var state: SpoofTimerState = .idle
     @Published private(set) var remainingSeconds: TimeInterval = 0
+
+    var isRunning: Bool { state.isRunning }
+    var isPaused: Bool { state.isPaused }
     @Published private(set) var progress: Double = 0.0
     @Published private(set) var activeCoordinate: CLLocationCoordinate2D?
     @Published var userSelectedDuration: TimeInterval = 300 // default 5 minutes

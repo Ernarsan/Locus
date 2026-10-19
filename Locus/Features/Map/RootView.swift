@@ -344,7 +344,7 @@ struct BottomControlsView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "timer")
-                    .foregroundStyle(timerController.state == .running ? LocusTheme.statusGood : LocusTheme.statusWarn)
+                    .foregroundStyle(timerController.isRunning ? LocusTheme.statusGood : LocusTheme.statusWarn)
 
                 Text(formatRemaining(timerController.remainingSeconds))
                     .font(.subheadline.weight(.bold).monospaced())

@@ -77,6 +77,9 @@ targets:
         IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         SWIFT_VERSION: "5.0"
         TEST_TARGET_NAME: Locus
+        SWIFT_INCLUDE_PATHS: "$(PROJECT_DIR)/Vendor/idevice"
+        HEADER_SEARCH_PATHS: "$(PROJECT_DIR)/Vendor/idevice"
+        LIBRARY_SEARCH_PATHS: "$(PROJECT_DIR)/Vendor/idevice"
 schemes:
   Locus:
     build:

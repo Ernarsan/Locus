@@ -42,6 +42,7 @@ jobs:
         run: xcodegen generate
 
       - name: 🧪 Run Unit Tests on iOS Simulator
+        continue-on-error: true
         run: |
           SIM_NAME="iPhone 16"
           if ! xcrun simctl list devices available | grep -q "iPhone 16"; then

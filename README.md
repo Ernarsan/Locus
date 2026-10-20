@@ -46,37 +46,6 @@ Also install **[LocalDevVPN](https://apps.apple.com/us/app/localdevvpn/id6755608
 
 Start a teleport on Wi‑Fi first; the session can keep working on cellular afterward.
 
-### Pokémon GO & similar games
-
-Locus spoofs location the same way Xcode’s developer tools do: it tells iOS “you’re here,” and other apps read that from the system. Apps that just trust GPS (Apple Maps, etc.) will follow it.
-
-**Pokémon GO is different.** It runs its own location checks and often rejects developer / simulated GPS (e.g. “Failed to detect location”). That’s expected with this method, not a Locus bug, and there’s no supported fix for it in this app.
-
-Tools like **iPogo** (and similar modified clients such as SpooferPro) work differently: they’re a **modified Pokémon GO app**, not a system-wide location spoof. Features live *inside* that altered game client, instead of feeding coordinates through iOS for every app. Locus never patches or replaces Pokémon GO; it only changes what the system reports. So those tools can appear to “work in Pokémon GO” while Locus correctly drives Maps but still gets blocked by Pokémon GO’s checks.
-
-Locus is for system-level teleporting. It isn’t a Pokémon GO client or an anti-cheat bypass.
-
-## Build
-
-Building from source needs an Apple Developer account (free or paid) for code signing. The published IPA does **not** — just sideload it.
-
-1. Install [XcodeGen](https://github.com/yonaskolb/XcodeGen) if needed: `brew install xcodegen`
-2. Set your **Team ID** in `project.yml` (`DEVELOPMENT_TEAM`), *or* pick your team under Xcode → Signing & Capabilities after generating the project.
-3. Generate and open:
-
-```bash
-xcodegen generate
-open Locus.xcodeproj
-```
-
-Or build from the CLI (replace with your Team ID from [developer.apple.com/account](https://developer.apple.com/account) → Membership):
-
-```bash
-xcodegen generate
-xcodebuild -project Locus.xcodeproj -scheme Locus -configuration Release \
-  -destination 'generic/platform=iOS' DEVELOPMENT_TEAM=YOUR_TEAM_ID build
-```
-
 ## License
 
 MIT. `Vendor/idevice` contains the idevice FFI (MIT). Locus is an independent open-source project and is not affiliated with Mirage / Wapixel.
@@ -199,8 +168,8 @@ MIT. `Vendor/idevice` contains the idevice FFI (MIT). Locus is an independent op
 3. **Баннер «Ошибка сброса локации»**:
    - Если при истечении таймера туннель кратковременно оборвался, приложение сделает 3 автоматические попытки с интервалом в 1 секунду.
    - Если связь не восстановилась, нажмите кнопку **«Сбросить сейчас»** на красном баннере в приложении, предварительно проверив статус LocalDevVPN.
-4. **Приложения с защитой от спуфинга (Pokémon GO и аналоги)**:
-   - Как отмечено в базовом проекте, Locus симулирует локацию через стандартный сервис разработчика Apple. Приложения со сложным античитом (Niantic Pokémon GO, Monster Hunter Now) сканируют флаги симуляции и могут отклонять такие координаты. Это ограничение метода Apple DVT, а не ошибка Locus. Обычные приложения (Apple Карты, Яндекс Карты, 2ГИС, Telegram, Погода, Браузеры) работают с симулированной локацией на 100%.
+4. **Приложения со встроенной проверкой симуляции**:
+   - Как отмечено в базовом проекте, Locus симулирует локацию через стандартный сервис разработчика Apple. Отдельные приложения со специализированной античит-проверкой сканируют флаги симуляции и могут отклонять такие координаты. Это ограничение метода Apple DVT, а не ошибка Locus. Обычные приложения (Apple Карты, Яндекс Карты, 2ГИС, Telegram, Погода, Браузеры) работают с симулированной локацией на 100%.
 
 ---
 
